@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioHazardGPT - AI-Powered Chemical Safety Classification</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 60px 0;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 0 5px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .cta-section {
+            text-align: center;
+            padding: 40px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            margin: 10px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .tech-badge {
+            background: #e9ecef;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .screenshot {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .content {
+                padding: 20px;
+                margin: 20px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🧬 BioHazardGPT</h1>
+            <p class="subtitle">AI-Powered Chemical Safety Classification with RAG Technology</p>
+            <div>
+                <span class="badge">🚀 RAG-Enhanced</span>
+                <span class="badge">🔬 Chemical Safety</span>
+                <span class="badge">🤖 GPT-4o Powered</span>
+                <span class="badge">📊 Vector Database</span>
+            </div>
+        </header>
+
+        <div class="content">
+            <h2>🎯 Project Overview</h2>
+            <p>BioHazardGPT is a sophisticated AI system that classifies chemical and biological text content into safety categories using Retrieval-Augmented Generation (RAG) technology. The system combines semantic search with GPT-4o to provide evidence-based safety classifications.</p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>RAG System</h3>
+                    <p>Advanced retrieval-augmented generation using ChromaDB and SentenceTransformers for context-aware classification</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Semantic Search</h3>
+                    <p>Vector embeddings enable finding similar safety examples from curated chemical safety knowledge base</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Real-time Analysis</h3>
+                    <p>Interactive web interface with 5 tabs: Classification, Dataset Explorer, Batch Analysis, Demo Examples, and RAG Analysis</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Safety Categories</h3>
+                    <p>Classifies content as Safe (🟢), Caution (🟡), or Hazardous (🔴) with detailed reasoning</p>
+                </div>
+            </div>
+
+            <h2>🛠️ Technical Architecture</h2>
+            <div class="tech-stack">
+                <span class="tech-badge">Python 3.9+</span>
+                <span class="tech-badge">Streamlit</span>
+                <span class="tech-badge">OpenAI GPT-4o</span>
+                <span class="tech-badge">ChromaDB</span>
+                <span class="tech-badge">SentenceTransformers</span>
+                <span class="tech-badge">Vector Embeddings</span>
+                <span class="tech-badge">Semantic Search</span>
+            </div>
+
+            <h2>🌟 Key Features</h2>
+            <ul style="font-size: 1.1rem; margin: 20px 0; padding-left: 20px;">
+                <li><strong>Evidence-Based Classification:</strong> Uses retrieved examples as context for accurate predictions</li>
+                <li><strong>Interactive Web Interface:</strong> Beautiful Streamlit UI with multiple analysis modes</li>
+                <li><strong>Vector Database Integration:</strong> Persistent ChromaDB storage for similarity search</li>
+                <li><strong>Batch Processing:</strong> Analyze multiple samples with visualizations</li>
+                <li><strong>Transparent RAG:</strong> Shows retrieved examples and similarity scores</li>
+                <li><strong>Security-First:</strong> Secure API key management and environment variables</li>
+            </ul>
+
+            <h2>📊 Safety Classification</h2>
+            <p>The system evaluates text content and assigns one of three safety levels:</p>
+            <div style="margin: 20px 0;">
+                <p><strong>🟢 Safe:</strong> Content poses no significant safety concerns</p>
+                <p><strong>🟡 Caution:</strong> Content requires careful handling or has dual-use implications</p>
+                <p><strong>🔴 Hazardous:</strong> Content describes dangerous procedures or could enable harmful activities</p>
+            </div>
+        </div>
+
+        <div class="cta-section">
+            <h2 style="margin-bottom: 30px;">🚀 Experience BioHazardGPT</h2>
+            <a href="https://github.com/Ali-Parsaee/Biohazard_project" class="cta-button">
+                📁 View Source Code
+            </a>
+            <a href="#" class="cta-button" id="live-demo">
+                🌐 Try Live Demo
+            </a>
+            <a href="https://github.com/Ali-Parsaee/Biohazard_project/blob/main/README.md" class="cta-button">
+                📖 Read Documentation
+            </a>
+        </div>
+
+        <div class="content">
+            <h2>🔬 Research Applications</h2>
+            <p>BioHazardGPT demonstrates cutting-edge applications of:</p>
+            <ul style="margin: 20px 0; padding-left: 20px;">
+                <li><strong>Retrieval-Augmented Generation (RAG):</strong> Combining external knowledge with language models</li>
+                <li><strong>Vector Similarity Search:</strong> Semantic understanding of chemical safety content</li>
+                <li><strong>Dual-Use Research Classification:</strong> Identifying potentially harmful scientific content</li>
+                <li><strong>AI Safety in Chemical Sciences:</strong> Responsible AI deployment in sensitive domains</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Update the live demo link when deployed
+        document.getElementById('live-demo').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Live demo will be available once deployed to Streamlit Cloud!\n\nTo deploy:\n1. Go to share.streamlit.io\n2. Connect your GitHub\n3. Deploy Ali-Parsaee/Biohazard_project');
+        });
+    </script>
+</body>
+</html> 
