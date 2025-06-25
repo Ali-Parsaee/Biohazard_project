@@ -102,6 +102,8 @@ def load_classifier():
         return None
     try:
         classifier = BioHazardRAG()
+        # Ensure datasets are loaded during initialization
+        classifier.load_multiple_datasets()
         return classifier
     except Exception as e:
         st.error(f"Failed to initialize classifier: {e}")
@@ -208,7 +210,7 @@ def main():
     # Header
     st.markdown('<h1 class="main-header">⚠️ BioHazardGPT</h1>', unsafe_allow_html=True)
     st.markdown("**Advanced RAG-powered risk classification system for biomedical and chemical content**")
-    st.info("🧠 **NEW:** Now featuring Retrieval-Augmented Generation with multiple chemical safety datasets!")
+    # st.info("🔬 **Powered by advanced AI:** Intelligent risk classification with detailed reasoning and analysis capabilities!")
     
     # Check API key first
     if not check_api_key():
@@ -227,28 +229,27 @@ def main():
         # About section
         st.subheader("ℹ️ About")
         st.markdown("""
-        **BioHazardGPT** uses advanced RAG (Retrieval-Augmented Generation) with GPT-4o to classify text content as:
+        **BioHazardGPT** uses advanced AI with GPT-4o to classify text content as:
         - 🟢 **Safe**: No significant safety concerns
         - 🟡 **Caution**: Requires careful handling
         - 🔴 **Hazardous**: Dangerous or harmful content
         
-        **🚀 RAG Features:**
-        - Multiple chemical safety datasets
-        - Vector embeddings & semantic search
-        - Context-aware classification
-        - Evidence-based reasoning
+        **🔬 Key Features:**
+        - Real-time text classification
+        - Dataset exploration and analysis
+        - Advanced RAG-powered reasoning
+        - Evidence-based safety assessment
         """)
         
-        st.markdown("**📊 Knowledge Sources:**")
+        st.markdown("**📚 Available Tools:**")
         st.markdown("""
-        - Chemical-Biological Safety conversations
-        - Toxic content classification dataset  
-        - Molecular toxicity predictions (Tox21)
-        - Curated chemical safety examples
+        - **Text Classification**: Analyze custom text input
+        - **Dataset Explorer**: Browse and test sample data
+        - **RAG Analysis**: Advanced reasoning with knowledge retrieval
         """)
     
     # Main content tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Text Classification", "📚 Dataset Explorer", "📊 Batch Analysis", "🧪 Demo Examples", "🧠 RAG Analysis"])
+    tab1, tab2, tab3 = st.tabs(["🔍 Text Classification", "📚 Dataset Explorer", "🧠 RAG Analysis"])
     
     with tab1:
         st.header("Text Classification")
@@ -346,288 +347,6 @@ def main():
             st.error("Failed to load dataset samples.")
     
     with tab3:
-        st.header("Batch Analysis")
-        st.markdown("Analyze multiple samples from the dataset. Choose specific samples or analyze random subsets.")
-        
-        classifier = load_classifier()
-        if classifier is None:
-            return
-        
-        # Load complete dataset
-        with st.spinner("Loading dataset..."):
-            all_samples = load_full_dataset(classifier)
-        
-        if all_samples:
-            st.success(f"Dataset loaded: {len(all_samples)} samples available")
-            
-            # Analysis options
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                analysis_mode = st.radio(
-                    "Analysis Mode:",
-                    ["Random Samples", "Filtered Samples", "All Samples"],
-                    help="Choose how to select samples for batch analysis"
-                )
-            
-            with col2:
-                if analysis_mode == "Random Samples":
-                    num_samples = st.slider("Number of random samples:", 1, min(50, len(all_samples)), 10)
-                elif analysis_mode == "Filtered Samples":
-                    search_filter = st.text_input(
-                        "Filter samples by content:",
-                        placeholder="Enter keywords to filter samples for analysis..."
-                    )
-                elif analysis_mode == "All Samples":
-                    st.info(f"Will analyze all {len(all_samples)} samples")
-            
-            # Select samples based on mode
-            if analysis_mode == "Random Samples":
-                # Fix: Don't sample more than available
-                num_to_sample = min(num_samples, len(all_samples))
-                if num_to_sample > 0:
-                    samples_to_analyze = random.sample(all_samples, num_to_sample)
-                    st.info(f"Will analyze {len(samples_to_analyze)} random samples")
-                else:
-                    samples_to_analyze = []
-                    st.warning("No samples available for analysis")
-            elif analysis_mode == "Filtered Samples":
-                if 'search_filter' in locals() and search_filter:
-                    samples_to_analyze = [
-                        sample for sample in all_samples 
-                        if search_filter.lower() in sample["text"].lower()
-                    ]
-                    st.info(f"Found {len(samples_to_analyze)} samples matching '{search_filter}'")
-                else:
-                    samples_to_analyze = []
-                    st.warning("Enter search terms to filter samples")
-            else:  # All samples
-                samples_to_analyze = all_samples
-            
-            # Run analysis
-            if samples_to_analyze and st.button("🚀 Run Batch Analysis", type="primary"):
-                with st.spinner(f"Analyzing {len(samples_to_analyze)} samples..."):
-                    try:
-                        # Custom batch analysis
-                        results = []
-                        progress_bar = st.progress(0)
-                        
-                        for i, sample in enumerate(samples_to_analyze):
-                            result = classifier.classify_text(sample["text"], include_reasoning=include_reasoning)
-                            result["sample_id"] = i + 1
-                            result["text"] = sample["text"]
-                            if "expected_label" in sample:
-                                result["expected_label"] = sample["expected_label"]
-                            results.append(result)
-                            progress_bar.progress((i + 1) / len(samples_to_analyze))
-                        
-                        # Compile statistics
-                        classifications = {}
-                        for result in results:
-                            cls = result.get("classification", "Unknown")
-                            classifications[cls] = classifications.get(cls, 0) + 1
-                        
-                        eval_results = {
-                            "total_samples": len(results),
-                            "classifications": classifications,
-                            "results": results
-                        }
-                        
-                        st.success(f"Analyzed {eval_results['total_samples']} samples")
-                        
-                        # Display statistics
-                        col1, col2 = st.columns([1, 1])
-                        
-                        with col1:
-                            st.subheader("📊 Classification Distribution")
-                            
-                            # Create pie chart
-                            labels = list(eval_results['classifications'].keys())
-                            values = list(eval_results['classifications'].values())
-                            
-                            colors = ['#28a745', '#ffc107', '#dc3545']  # Green, Yellow, Red
-                            
-                            fig = go.Figure(data=[go.Pie(
-                                labels=labels, 
-                                values=values,
-                                marker_colors=colors,
-                                textinfo='label+percent',
-                                textfont_size=12
-                            )])
-                            fig.update_layout(title="Classification Distribution")
-                            st.plotly_chart(fig, use_container_width=True)
-                        
-                        with col2:
-                            st.subheader("📈 Results Summary")
-                            for category, count in eval_results['classifications'].items():
-                                percentage = (count / eval_results['total_samples']) * 100
-                                st.metric(category, f"{count} samples", f"{percentage:.1f}%")
-                        
-                        # Detailed results with search/filter
-                        st.subheader("📋 Detailed Results")
-                        
-                        # Results filter
-                        result_filter = st.selectbox(
-                            "Filter results by classification:",
-                            ["All"] + list(eval_results['classifications'].keys())
-                        )
-                        
-                        filtered_results = eval_results["results"]
-                        if result_filter != "All":
-                            filtered_results = [r for r in results if r.get("classification") == result_filter]
-                        
-                        results_df = pd.DataFrame([
-                            {
-                                "Sample ID": r.get("sample_id", "N/A"),
-                                "Classification": r.get("classification", "Unknown"),
-                                "Expected": r.get("expected_label", "N/A"),
-                                "Match": "✅" if r.get("classification") == r.get("expected_label") else "❌" if "expected_label" in r else "N/A",
-                                "Text Preview": r.get("text", "")[:100] + "..." if len(r.get("text", "")) > 100 else r.get("text", ""),
-                                "Reasoning": r.get("reasoning", "N/A")[:150] + "..." if len(r.get("reasoning", "")) > 150 else r.get("reasoning", "N/A")
-                            }
-                            for r in filtered_results
-                        ])
-                        
-                        st.dataframe(results_df, use_container_width=True)
-                        
-                    except Exception as e:
-                        st.error(f"Batch analysis failed: {e}")
-        else:
-            st.error("Failed to load dataset.")
-    
-    with tab4:
-        st.header("Demo Examples")
-        st.markdown("Interactive demo with curated examples. Choose from different categories or add your own examples.")
-        
-        classifier = load_classifier()
-        if classifier is None:
-            return
-        
-        # Example categories
-        example_categories = {
-            "Safe Laboratory Procedures": [
-                {
-                    "title": "Standard Solution Preparation",
-                    "text": "To prepare a standard sodium chloride solution, dissolve 58.5 grams of NaCl in 1 liter of distilled water while wearing appropriate safety equipment including gloves and safety goggles."
-                },
-                {
-                    "title": "Basic pH Measurement",
-                    "text": "Calibrate the pH meter using standard buffer solutions at pH 4, 7, and 10. Rinse the electrode with distilled water between measurements and store in storage solution when not in use."
-                },
-                {
-                    "title": "Simple Crystallization",
-                    "text": "Slowly cool the saturated solution to room temperature to encourage crystal formation. Filter the crystals using filter paper and wash with cold distilled water to remove impurities."
-                }
-            ],
-            "Procedures Requiring Caution": [
-                {
-                    "title": "Acid Handling",
-                    "text": "When diluting concentrated sulfuric acid, always add acid to water slowly while stirring continuously. Work in a fume hood and wear acid-resistant gloves, safety goggles, and a lab coat."
-                },
-                {
-                    "title": "Organic Solvent Use",
-                    "text": "Extract the compound using dichloromethane in a separatory funnel. Ensure adequate ventilation and avoid open flames as the solvent is volatile and flammable."
-                },
-                {
-                    "title": "High Temperature Reaction",
-                    "text": "Heat the reaction mixture to 300°C using a heating mantle with temperature control. Use appropriate heat-resistant glassware and ensure proper ventilation to handle any vapors produced."
-                }
-            ],
-            "Potentially Hazardous Content": [
-                {
-                    "title": "Toxic Compound Synthesis",
-                    "text": "To synthesize ricin toxin, extract castor beans and purify the protein using chromatography. This highly toxic substance can be lethal in small quantities and requires special handling procedures."
-                },
-                {
-                    "title": "Explosive Preparation",
-                    "text": "Mix potassium nitrate, sulfur, and charcoal in specific ratios to create a pyrotechnic composition. This mixture is highly explosive and sensitive to shock, friction, and heat."
-                },
-                {
-                    "title": "Dangerous Chemical Reaction",
-                    "text": "Combine sodium metal with water to produce hydrogen gas and sodium hydroxide. This reaction is extremely vigorous and can cause explosions and severe burns from the generated heat and caustic products."
-                }
-            ]
-        }
-        
-        # Category selector
-        selected_category = st.selectbox(
-            "Choose a category of examples:",
-            list(example_categories.keys())
-        )
-        
-        examples = example_categories[selected_category]
-        
-        # Example selector within category
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            selected_example_idx = st.selectbox(
-                "Select an example:",
-                range(len(examples)),
-                format_func=lambda x: examples[x]["title"]
-            )
-        
-        with col2:
-            if st.button("🎲 Random Example"):
-                all_examples = []
-                for cat_examples in example_categories.values():
-                    all_examples.extend(cat_examples)
-                random_example = random.choice(all_examples)
-                st.session_state["custom_example_text"] = random_example["text"]
-        
-        # Display selected example
-        if selected_example_idx is not None:
-            example = examples[selected_example_idx]
-            
-            st.subheader(f"Example: {example['title']}")
-            
-            # Allow editing of example text
-            example_text = st.text_area(
-                "Example text (you can modify this):",
-                value=example["text"],
-                height=150,
-                key="demo_example_text"
-            )
-            
-            # Classify button
-            if st.button("🔍 Classify This Example", key="classify_demo_example"):
-                with st.spinner("Classifying example..."):
-                    try:
-                        result = classifier.classify_text(example_text, include_reasoning=include_reasoning)
-                        
-                        st.markdown("### Classification Result")
-                        display_classification_result(result)
-                        
-                    except Exception as e:
-                        st.error(f"Classification failed: {e}")
-        
-        # Custom example section
-        st.markdown("---")
-        st.subheader("Custom Example")
-        st.markdown("Enter your own text to classify:")
-        
-        custom_text = st.text_area(
-            "Your custom text:",
-            height=150,
-            placeholder="Enter any biomedical or chemical content you want to classify...",
-            key="custom_example_text"
-        )
-        
-        if st.button("🔍 Classify Custom Text", key="classify_custom"):
-            if custom_text.strip():
-                with st.spinner("Classifying custom text..."):
-                    try:
-                        result = classifier.classify_text(custom_text, include_reasoning=include_reasoning)
-                        
-                        st.markdown("### Classification Result")
-                        display_classification_result(result)
-                        
-                    except Exception as e:
-                        st.error(f"Classification failed: {e}")
-            else:
-                st.warning("Please enter some text to classify.")
-    
-    with tab5:
         st.header("🧠 RAG-Enhanced Analysis")
         st.markdown("Experience the power of Retrieval-Augmented Generation! See how similar examples from our knowledge base inform classifications.")
         
@@ -746,6 +465,7 @@ def main():
         st.markdown("### 📈 Knowledge Base Statistics")
         try:
             with st.spinner("Loading knowledge base stats..."):
+                # Ensure datasets are loaded first
                 datasets = classifier.load_multiple_datasets()
                 
                 col1, col2, col3 = st.columns(3)
@@ -754,8 +474,13 @@ def main():
                     st.metric("Total Datasets", len(datasets))
                 
                 with col2:
-                    total_examples = classifier.collection.count()
-                    st.metric("Indexed Examples", total_examples)
+                    try:
+                        # Safely get collection count
+                        total_examples = classifier.collection.count()
+                        st.metric("Indexed Examples", total_examples)
+                    except Exception as e:
+                        st.metric("Indexed Examples", "Error")
+                        st.warning(f"Could not access vector database: {e}")
                 
                 with col3:
                     embedding_dim = 384  # all-MiniLM-L6-v2 uses 384 dimensions
@@ -765,7 +490,7 @@ def main():
                 st.markdown("**📋 Dataset Breakdown:**")
                 dataset_info = []
                 for name, dataset in datasets.items():
-                    if name == 'curated_examples':
+                    if 'examples' in dataset:
                         count = len(dataset['examples'])
                     elif 'train' in dataset:
                         count = len(dataset['train'])
@@ -775,7 +500,7 @@ def main():
                     dataset_info.append({
                         "Dataset": name.replace('_', ' ').title(),
                         "Examples": count,
-                        "Type": "Curated" if name == 'curated_examples' else "External"
+                        "Type": "Synthetic" if name in ['toxic_chat', 'chemistry_qa', 'safety_instructions'] else "Curated"
                     })
                 
                 df = pd.DataFrame(dataset_info)
@@ -783,6 +508,7 @@ def main():
                 
         except Exception as e:
             st.error(f"Failed to load knowledge base statistics: {e}")
+            st.info("💡 Try refreshing the page or restarting the application to reinitialize the knowledge base.")
 
 if __name__ == "__main__":
     main() 

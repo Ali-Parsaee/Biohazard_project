@@ -10,7 +10,9 @@ huggingface-hub>=0.17.0
 plotly>=5.17.0
 sentence-transformers
 faiss-cpu
-chromadb
+chromadb==0.4.24
 transformers
 torch
-accelerate 
+accelerate
+protobuf==3.20.3
+grpcio==1.60.0 

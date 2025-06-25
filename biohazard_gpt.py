@@ -12,6 +12,8 @@ import time
 from typing import Dict, List, Optional
 from sentence_transformers import SentenceTransformer
 import chromadb
+from datasets import load_dataset
+import pandas as pd
 
 # Load environment variables
 load_dotenv()
@@ -50,6 +52,29 @@ class BioHazardRAG:
         self.datasets = {}
         self.dataset_loaded = False
     
+    def clear_vector_database(self):
+        """Clear the vector database to reload fresh data"""
+        try:
+            collection_count = self.collection.count()
+            if collection_count > 0:
+                # Delete existing collection
+                self.chroma_client.delete_collection("chemical_safety_examples")
+                logger.info(f"Cleared {collection_count} examples from vector database")
+                
+                # Recreate empty collection
+                self.collection = self.chroma_client.create_collection(
+                    name="chemical_safety_examples",
+                    metadata={"description": "Chemical and biological safety examples for RAG"}
+                )
+                logger.info("Created fresh vector database")
+                
+                # Reset dataset loaded flag
+                self.dataset_loaded = False
+                self.datasets = {}
+                
+        except Exception as e:
+            logger.warning(f"Failed to clear vector database: {e}")
+    
     def setup_vector_database(self):
         """Set up ChromaDB vector database for similarity search"""
         # Create persistent ChromaDB client
@@ -75,6 +100,24 @@ class BioHazardRAG:
         # Curated chemical safety examples
         self.datasets['curated_examples'] = self._create_curated_safety_examples()
         logger.info("✅ Created curated chemical safety examples")
+        
+        # Use only synthetic datasets for maximum speed (no downloads)
+        logger.info("Creating synthetic datasets for fast RAG system...")
+        
+        # 1. Synthetic toxic content examples
+        logger.info("Creating synthetic toxic content examples...")
+        self.datasets['toxic_chat'] = self._create_synthetic_toxic_examples()
+        logger.info("✅ Created toxic content dataset")
+        
+        # 2. Synthetic chemistry examples
+        logger.info("Creating synthetic chemistry examples...")
+        self.datasets['chemistry_qa'] = self._create_synthetic_chemistry_examples()
+        logger.info("✅ Created chemistry Q&A dataset")
+        
+        # 3. Synthetic safety examples
+        logger.info("Creating synthetic safety examples...")
+        self.datasets['safety_instructions'] = self._create_synthetic_safety_examples()
+        logger.info("✅ Created safety instructions dataset")
         
         # Process and index all datasets
         self._process_and_index_datasets()
@@ -146,25 +189,378 @@ class BioHazardRAG:
         
         return {"examples": examples}
     
+    def _load_small_toxic_dataset(self):
+        """Load a very small toxic chat dataset quickly"""
+        try:
+            # Load only 100 examples for speed
+            dataset = load_dataset("lmsys/toxic-chat", "toxicchat0124", split="train[:100]", trust_remote_code=True)
+            
+            processed_examples = []
+            for example in dataset:
+                toxicity = example.get('toxicity', 0)
+                if toxicity >= 0.7:
+                    classification = "Hazardous"
+                elif toxicity >= 0.3:
+                    classification = "Caution"
+                else:
+                    classification = "Safe"
+                
+                processed_examples.append({
+                    'text': example.get('user_input', '')[:500],  # Limit text length
+                    'classification': classification,
+                    'reasoning': f"Toxicity score: {toxicity:.2f}",
+                    'category': 'content_safety',
+                    'source': 'toxic_chat'
+                })
+            
+            logger.info(f"Processed {len(processed_examples)} toxic chat examples")
+            return {'examples': processed_examples}
+            
+        except Exception as e:
+            logger.error(f"Failed to load toxic chat dataset: {e}")
+            return None
+    
+    def _create_synthetic_toxic_examples(self):
+        """Create synthetic toxic content examples"""
+        synthetic_examples = [
+            # SAFE CONTENT
+            {
+                'text': "How to safely dispose of chemical waste in laboratory settings according to regulations",
+                'classification': "Safe",
+                'reasoning': "Safety instruction about proper waste disposal",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Educational content about the importance of laboratory safety protocols",
+                'classification': "Safe",
+                'reasoning': "Educational safety content",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Guidelines for proper personal protective equipment in research environments",
+                'classification': "Safe",
+                'reasoning': "Safety guidelines and best practices",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            
+            # CAUTION CONTENT
+            {
+                'text': "Instructions for handling moderately dangerous chemicals in controlled environments",
+                'classification': "Caution", 
+                'reasoning': "Content about potentially harmful substances",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Discussion of chemical accidents and their prevention in industrial settings",
+                'classification': "Caution",
+                'reasoning': "Content about hazardous situations requiring careful consideration",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Information about toxic substances and their health effects for educational purposes",
+                'classification': "Caution",
+                'reasoning': "Educational content about dangerous materials",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            
+            # HAZARDOUS CONTENT
+            {
+                'text': "Detailed instructions for creating explosive devices for terrorist activities",
+                'classification': "Hazardous",
+                'reasoning': "Content about dangerous explosive materials with malicious intent",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Step-by-step guide for producing biological weapons and toxins",
+                'classification': "Hazardous",
+                'reasoning': "Bioweapons production information",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Instructions for manufacturing illegal drugs and narcotics",
+                'classification': "Hazardous",
+                'reasoning': "Illegal drug production content",
+                'category': 'content_safety',
+                'source': 'synthetic'
+            }
+        ]
+        
+        logger.info(f"Created {len(synthetic_examples)} synthetic toxic examples")
+        return {'examples': synthetic_examples}
+    
+    def _load_small_chemistry_dataset(self):
+        """Load a very small chemistry dataset quickly"""
+        try:
+            # Try a lightweight chemistry dataset - only 50 examples for speed
+            dataset = load_dataset("camel-ai/chemistry", split="train[:50]")
+            
+            processed_examples = []
+            for example in dataset:
+                # Extract text content
+                if 'message_1' in example and 'message_2' in example:
+                    text = f"{example['message_1']} {example['message_2']}"
+                else:
+                    text = str(example)[:300]
+                
+                # Infer safety classification
+                classification = self._infer_classification(text)
+                
+                processed_examples.append({
+                    'text': text[:500],  # Limit text length for speed
+                    'classification': classification,
+                    'reasoning': f"Chemistry content classification",
+                    'category': 'chemistry',
+                    'source': 'camel_chemistry'
+                })
+            
+            logger.info(f"Processed {len(processed_examples)} chemistry examples")
+            return {'examples': processed_examples}
+            
+        except Exception as e:
+            logger.error(f"Failed to load chemistry dataset: {e}")
+            return None
+    
+    def _create_synthetic_safety_examples(self):
+        """Create synthetic safety instruction examples"""
+        safety_examples = [
+            # SAFE SAFETY INSTRUCTIONS
+            {
+                'text': "Always wear appropriate personal protective equipment when handling chemicals in the laboratory",
+                'classification': "Safe",
+                'reasoning': "Standard safety instruction",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How to safely store and label chemical reagents in laboratory settings",
+                'classification': "Safe",
+                'reasoning': "Standard laboratory safety procedures",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Proper procedures for washing hands and decontamination after laboratory work",
+                'classification': "Safe",
+                'reasoning': "Basic hygiene and safety procedures",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Guidelines for maintaining clean and organized laboratory workspaces",
+                'classification': "Safe",
+                'reasoning': "Laboratory organization and safety",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            
+            # CAUTION SAFETY INSTRUCTIONS
+            {
+                'text': "Procedures for handling concentrated acids require special ventilation and protective equipment",
+                'classification': "Caution",
+                'reasoning': "Safety instruction for potentially dangerous procedures",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Emergency procedures for chemical spills and exposure incidents",
+                'classification': "Caution",
+                'reasoning': "Emergency safety procedures",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Safety protocols for working with radioactive materials in research facilities",
+                'classification': "Caution",
+                'reasoning': "Procedures for handling dangerous radioactive substances",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Guidelines for handling biological samples that may contain pathogens",
+                'classification': "Caution",
+                'reasoning': "Biosafety procedures for potentially infectious materials",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            
+            # HAZARDOUS SAFETY-RELATED CONTENT
+            {
+                'text': "Manufacturing processes for military-grade chemical weapons and nerve agents",
+                'classification': "Hazardous",
+                'reasoning': "Content about dangerous weapons production",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Instructions for bypassing laboratory safety systems and protocols",
+                'classification': "Hazardous",
+                'reasoning': "Content that undermines safety measures",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How to create improvised explosive devices using laboratory chemicals",
+                'classification': "Hazardous",
+                'reasoning': "Dangerous explosive creation instructions",
+                'category': 'safety_instructions',
+                'source': 'synthetic'
+            }
+        ]
+        
+        logger.info(f"Created {len(safety_examples)} synthetic safety examples")
+        return {'examples': safety_examples}
+    
+    def _create_synthetic_chemistry_examples(self):
+        """Create synthetic chemistry examples as fallback"""
+        synthetic_examples = [
+            # SAFE CHEMISTRY EXAMPLES
+            {
+                'text': "How do you prepare a standard solution of sodium chloride for analytical chemistry?",
+                'classification': "Safe", 
+                'reasoning': "Basic chemistry procedure with safe materials",
+                'category': 'chemistry_basic',
+                'source': 'synthetic'
+            },
+            {
+                'text': "What is the procedure for calibrating a pH meter using buffer solutions?",
+                'classification': "Safe",
+                'reasoning': "Standard analytical procedure",
+                'category': 'chemistry_basic',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How do you perform a simple crystallization of salt from solution?",
+                'classification': "Safe",
+                'reasoning': "Basic purification technique",
+                'category': 'chemistry_basic',
+                'source': 'synthetic'
+            },
+            {
+                'text': "What are the steps for preparing a buffer solution in the laboratory?",
+                'classification': "Safe",
+                'reasoning': "Standard laboratory procedure",
+                'category': 'chemistry_basic',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How do you properly clean glassware for analytical chemistry experiments?",
+                'classification': "Safe",
+                'reasoning': "Basic laboratory maintenance",
+                'category': 'chemistry_basic',
+                'source': 'synthetic'
+            },
+            
+            # CAUTION CHEMISTRY EXAMPLES
+            {
+                'text': "What is the proper way to handle concentrated acids in a laboratory setting?",
+                'classification': "Caution",
+                'reasoning': "Chemistry safety question about dangerous chemicals",
+                'category': 'chemistry_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "What precautions should be taken when working with organic solvents like benzene?",
+                'classification': "Caution",
+                'reasoning': "Safety question about potentially harmful solvents",
+                'category': 'chemistry_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How do you safely perform distillation of volatile organic compounds?",
+                'classification': "Caution",
+                'reasoning': "Procedure involving potentially dangerous materials",
+                'category': 'chemistry_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "What safety measures are needed when heating reactions above 200°C?",
+                'classification': "Caution",
+                'reasoning': "High temperature procedures require special precautions",
+                'category': 'chemistry_safety',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How do you handle and store oxidizing agents in the laboratory?",
+                'classification': "Caution",
+                'reasoning': "Oxidizing agents can be reactive and dangerous",
+                'category': 'chemistry_safety',
+                'source': 'synthetic'
+            },
+            
+            # HAZARDOUS CHEMISTRY EXAMPLES
+            {
+                'text': "Describe the synthesis of explosive compounds for military applications.",
+                'classification': "Hazardous",
+                'reasoning': "Discussion of explosive synthesis - potentially dangerous",
+                'category': 'chemistry_hazardous',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How to synthesize ricin toxin from castor bean extract for research purposes?",
+                'classification': "Hazardous",
+                'reasoning': "Synthesis of deadly biological toxin",
+                'category': 'chemistry_hazardous',
+                'source': 'synthetic'
+            },
+            {
+                'text': "What are the steps to produce chlorine gas in large quantities?",
+                'classification': "Hazardous",
+                'reasoning': "Production of toxic gas with weapons potential",
+                'category': 'chemistry_hazardous',
+                'source': 'synthetic'
+            },
+            {
+                'text': "How do you synthesize methamphetamine from over-the-counter medications?",
+                'classification': "Hazardous",
+                'reasoning': "Illegal drug synthesis information",
+                'category': 'chemistry_hazardous',
+                'source': 'synthetic'
+            },
+            {
+                'text': "Procedures for creating nerve agents and chemical warfare compounds.",
+                'classification': "Hazardous",
+                'reasoning': "Chemical weapons production information",
+                'category': 'chemistry_hazardous',
+                'source': 'synthetic'
+            }
+        ]
+        
+        logger.info(f"Created {len(synthetic_examples)} synthetic chemistry examples")
+        return {'examples': synthetic_examples}
+    
     def _process_and_index_datasets(self):
         """Process all loaded datasets and index them in vector database"""
         logger.info("Processing and indexing datasets for RAG...")
         
         all_examples = []
         
-        # Process curated examples
-        if 'curated_examples' in self.datasets:
-            for example in self.datasets['curated_examples']['examples']:
-                all_examples.append({
-                    'text': example['text'],
-                    'classification': example['classification'], 
-                    'reasoning': example.get('reasoning', ''),
-                    'category': example.get('category', 'general'),
-                    'source': 'curated',
-                    'id': self._generate_id(example['text'], 'curated', example.get('category', 'general'))
-                })
+        # Process all loaded datasets
+        for dataset_name, dataset in self.datasets.items():
+            if 'examples' in dataset:
+                dataset_examples = []
+                for example in dataset['examples']:
+                    processed_example = {
+                        'text': example['text'],
+                        'classification': example['classification'], 
+                        'reasoning': example.get('reasoning', ''),
+                        'category': example.get('category', 'general'),
+                        'source': example.get('source', dataset_name),
+                        'id': self._generate_id(example['text'], example.get('source', dataset_name), example.get('category', 'general'))
+                    }
+                    dataset_examples.append(processed_example)
+                    all_examples.append(processed_example)
+                
+                logger.info(f"Processed {len(dataset_examples)} examples from {dataset_name}")
         
-        logger.info(f"Using {len(all_examples)} curated examples for vector database")
+        logger.info(f"Total examples for vector database: {len(all_examples)}")
         
         # Index examples in vector database
         if all_examples:
@@ -198,29 +594,57 @@ class BioHazardRAG:
             
         texts = [ex['text'] for ex in examples]
         
-        # Generate embeddings
-        logger.info("Generating embeddings for examples...")
-        embeddings = self.embedding_model.encode(texts)
+        # Generate embeddings in batches for better performance
+        logger.info(f"Generating embeddings for {len(examples)} examples...")
+        batch_size = 100
+        all_embeddings = []
         
-        # Check if collection is empty
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i+batch_size]
+            batch_embeddings = self.embedding_model.encode(batch_texts)
+            all_embeddings.extend(batch_embeddings.tolist())
+            logger.info(f"Generated embeddings for batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+        
+        # Check if collection is empty or if we should reset it
         collection_count = self.collection.count()
         
-        if collection_count == 0:
-            # Add all examples
-            self.collection.add(
-                embeddings=embeddings.tolist(),
-                documents=texts,
-                metadatas=[{
-                    'classification': ex['classification'],
-                    'reasoning': ex['reasoning'],
-                    'category': ex['category'], 
-                    'source': ex['source']
-                } for ex in examples],
-                ids=[ex['id'] for ex in examples]
-            )
-            logger.info(f"Added {len(examples)} examples to vector database")
+        if collection_count == 0 or collection_count < 50:  # Reset if only curated examples
+            # Clear existing data if it's just the small curated set
+            if collection_count > 0:
+                try:
+                    self.collection.delete()
+                    # Recreate collection
+                    self.collection = self.chroma_client.create_collection(
+                        name="chemical_safety_examples",
+                        metadata={"description": "Chemical and biological safety examples for RAG"}
+                    )
+                    logger.info("Reset vector database for new dataset loading")
+                except:
+                    pass
+            
+            # Add all examples in batches
+            batch_size = 100
+            for i in range(0, len(examples), batch_size):
+                batch_examples = examples[i:i+batch_size]
+                batch_embeddings = all_embeddings[i:i+batch_size]
+                batch_texts = texts[i:i+batch_size]
+                
+                self.collection.add(
+                    embeddings=batch_embeddings,
+                    documents=batch_texts,
+                    metadatas=[{
+                        'classification': ex['classification'],
+                        'reasoning': ex['reasoning'],
+                        'category': ex['category'], 
+                        'source': ex['source']
+                    } for ex in batch_examples],
+                    ids=[ex['id'] for ex in batch_examples]
+                )
+                logger.info(f"Added batch {i//batch_size + 1}/{(len(examples)-1)//batch_size + 1} to vector database")
+            
+            logger.info(f"✅ Successfully indexed {len(examples)} examples in vector database")
         else:
-            logger.info(f"Vector database already contains {collection_count} examples")
+            logger.info(f"Vector database already contains {collection_count} examples - skipping reindexing")
     
     def retrieve_similar_examples(self, query_text: str, k: int = 5) -> List[Dict]:
         """Retrieve similar examples from vector database"""
