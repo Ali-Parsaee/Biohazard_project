@@ -13,9 +13,11 @@ from dotenv import load_dotenv
 import logging
 import hashlib
 import time
+import pickle
+import numpy as np
 from typing import Dict, List, Optional
 from sentence_transformers import SentenceTransformer
-import chromadb
+import faiss
 from datasets import load_dataset
 import pandas as pd
 
@@ -29,6 +31,7 @@ logger = logging.getLogger(__name__)
 class BioHazardRAG:
     """
     RAG-powered biomedical and chemical safety risk classification system.
+    Uses FAISS for vector similarity search instead of ChromaDB for better deployment compatibility.
     """
     
     def __init__(self, api_key: Optional[str] = None, embedding_model: str = "all-MiniLM-L6-v2"):
@@ -46,7 +49,7 @@ class BioHazardRAG:
         logger.info(f"Loading embedding model: {embedding_model}")
         self.embedding_model = SentenceTransformer(embedding_model)
         
-        # Set up vector database
+        # Set up vector database using FAISS
         self.setup_vector_database()
         
         # Safety categories
@@ -59,40 +62,75 @@ class BioHazardRAG:
     def clear_vector_database(self):
         """Clear the vector database to reload fresh data"""
         try:
-            collection_count = self.collection.count()
-            if collection_count > 0:
-                # Delete existing collection
-                self.chroma_client.delete_collection("chemical_safety_examples")
-                logger.info(f"Cleared {collection_count} examples from vector database")
-                
-                # Recreate empty collection
-                self.collection = self.chroma_client.create_collection(
-                    name="chemical_safety_examples",
-                    metadata={"description": "Chemical and biological safety examples for RAG"}
-                )
-                logger.info("Created fresh vector database")
-                
-                # Reset dataset loaded flag
-                self.dataset_loaded = False
-                self.datasets = {}
+            if hasattr(self, 'faiss_index') and self.faiss_index is not None:
+                logger.info(f"Cleared {self.faiss_index.ntotal} examples from vector database")
+            
+            # Reset FAISS index
+            self.faiss_index = None
+            self.example_texts = []
+            self.example_metadata = []
+            
+            # Reset dataset loaded flag
+            self.dataset_loaded = False
+            self.datasets = {}
+            logger.info("Created fresh vector database")
                 
         except Exception as e:
             logger.warning(f"Failed to clear vector database: {e}")
     
     def setup_vector_database(self):
-        """Set up ChromaDB vector database for similarity search"""
-        # Create persistent ChromaDB client
-        self.chroma_client = chromadb.PersistentClient(path="./chroma_db")
+        """Set up FAISS vector database for similarity search"""
+        # Initialize FAISS index (will be created when first examples are added)
+        self.faiss_index = None
+        self.example_texts = []
+        self.example_metadata = []
+        self.embedding_dim = 384  # Dimension for all-MiniLM-L6-v2
         
-        # Get or create collection
-        collection_name = "chemical_safety_examples"
+        # Try to load existing index
         try:
-            self.collection = self.chroma_client.get_collection(collection_name)
+            self.load_vector_database()
         except:
-            self.collection = self.chroma_client.create_collection(
-                name=collection_name,
-                metadata={"description": "Chemical and biological safety examples for RAG"}
-            )
+            logger.info("No existing vector database found, will create new one")
+
+    def save_vector_database(self):
+        """Save FAISS index and metadata to disk"""
+        try:
+            if self.faiss_index is not None and self.faiss_index.ntotal > 0:
+                # Create directory if it doesn't exist
+                os.makedirs("./faiss_db", exist_ok=True)
+                
+                # Save FAISS index
+                faiss.write_index(self.faiss_index, "./faiss_db/index.faiss")
+                
+                # Save metadata
+                with open("./faiss_db/metadata.pkl", "wb") as f:
+                    pickle.dump({
+                        'texts': self.example_texts,
+                        'metadata': self.example_metadata
+                    }, f)
+                
+                logger.info(f"Saved vector database with {self.faiss_index.ntotal} examples")
+        except Exception as e:
+            logger.warning(f"Failed to save vector database: {e}")
+
+    def load_vector_database(self):
+        """Load FAISS index and metadata from disk"""
+        try:
+            # Load FAISS index
+            self.faiss_index = faiss.read_index("./faiss_db/index.faiss")
+            
+            # Load metadata
+            with open("./faiss_db/metadata.pkl", "rb") as f:
+                data = pickle.load(f)
+                self.example_texts = data['texts']
+                self.example_metadata = data['metadata']
+            
+            logger.info(f"Loaded vector database with {self.faiss_index.ntotal} examples")
+        except Exception as e:
+            logger.info("No existing vector database found")
+            self.faiss_index = None
+            self.example_texts = []
+            self.example_metadata = []
     
     def load_multiple_datasets(self) -> Dict:
         """Load multiple chemical safety datasets for comprehensive coverage"""
@@ -592,7 +630,7 @@ class BioHazardRAG:
             return "Safe"
     
     def _index_examples(self, examples: List[Dict]):
-        """Index examples in ChromaDB with embeddings"""
+        """Index examples in FAISS with embeddings"""
         if not examples:
             return
             
@@ -609,22 +647,12 @@ class BioHazardRAG:
             all_embeddings.extend(batch_embeddings.tolist())
             logger.info(f"Generated embeddings for batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
         
-        # Check if collection is empty or if we should reset it
-        collection_count = self.collection.count()
-        
-        if collection_count == 0 or collection_count < 50:  # Reset if only curated examples
-            # Clear existing data if it's just the small curated set
-            if collection_count > 0:
-                try:
-                    self.collection.delete()
-                    # Recreate collection
-                    self.collection = self.chroma_client.create_collection(
-                        name="chemical_safety_examples",
-                        metadata={"description": "Chemical and biological safety examples for RAG"}
-                    )
-                    logger.info("Reset vector database for new dataset loading")
-                except:
-                    pass
+        # Check if FAISS index is empty or if we should reset it
+        if self.faiss_index is None or self.faiss_index.ntotal == 0:  # Reset if empty
+            # Clear existing data
+            self.faiss_index = None
+            self.example_texts = []
+            self.example_metadata = []
             
             # Add all examples in batches
             batch_size = 100
@@ -633,22 +661,20 @@ class BioHazardRAG:
                 batch_embeddings = all_embeddings[i:i+batch_size]
                 batch_texts = texts[i:i+batch_size]
                 
-                self.collection.add(
-                    embeddings=batch_embeddings,
-                    documents=batch_texts,
-                    metadatas=[{
-                        'classification': ex['classification'],
-                        'reasoning': ex['reasoning'],
-                        'category': ex['category'], 
-                        'source': ex['source']
-                    } for ex in batch_examples],
-                    ids=[ex['id'] for ex in batch_examples]
-                )
-                logger.info(f"Added batch {i//batch_size + 1}/{(len(examples)-1)//batch_size + 1} to vector database")
+                self.faiss_index = faiss.IndexFlatL2(self.embedding_dim)
+                self.faiss_index.add(np.array(batch_embeddings))
+                self.example_texts.extend(batch_texts)
+                self.example_metadata.extend([{
+                    'classification': ex['classification'],
+                    'reasoning': ex['reasoning'],
+                    'category': ex['category'], 
+                    'source': ex['source']
+                } for ex in batch_examples])
             
+            self.save_vector_database()
             logger.info(f"✅ Successfully indexed {len(examples)} examples in vector database")
         else:
-            logger.info(f"Vector database already contains {collection_count} examples - skipping reindexing")
+            logger.info(f"Vector database already contains {self.faiss_index.ntotal} examples - skipping reindexing")
     
     def retrieve_similar_examples(self, query_text: str, k: int = 5) -> List[Dict]:
         """Retrieve similar examples from vector database"""
@@ -656,21 +682,17 @@ class BioHazardRAG:
         query_embedding = self.embedding_model.encode([query_text])
         
         # Search for similar examples
-        results = self.collection.query(
-            query_embeddings=query_embedding.tolist(),
-            n_results=k,
-            include=['documents', 'metadatas', 'distances']
-        )
+        distances, indices = self.faiss_index.search(np.array(query_embedding).reshape(1, -1), k)
         
         similar_examples = []
-        for i in range(len(results['documents'][0])):
+        for i in range(len(indices[0])):
             similar_examples.append({
-                'text': results['documents'][0][i],
-                'classification': results['metadatas'][0][i]['classification'],
-                'reasoning': results['metadatas'][0][i]['reasoning'],
-                'category': results['metadatas'][0][i]['category'],
-                'source': results['metadatas'][0][i]['source'],
-                'similarity_score': 1 - results['distances'][0][i]
+                'text': self.example_texts[indices[0][i]],
+                'classification': self.example_metadata[indices[0][i]]['classification'],
+                'reasoning': self.example_metadata[indices[0][i]]['reasoning'],
+                'category': self.example_metadata[indices[0][i]]['category'],
+                'source': self.example_metadata[indices[0][i]]['source'],
+                'similarity_score': 1 - distances[0][i]
             })
         
         return similar_examples
