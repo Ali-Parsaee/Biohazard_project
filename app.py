@@ -4,6 +4,11 @@ BioHazardGPT Web Interface
 A Streamlit web application for the BioHazardGPT risk classification tool.
 """
 
+# Set environment variables BEFORE any imports to avoid protobuf conflicts
+import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px

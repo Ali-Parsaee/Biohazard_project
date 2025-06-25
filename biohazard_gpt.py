@@ -3,7 +3,11 @@ BioHazardGPT: A sophisticated RAG-powered risk classification tool
 for detecting hazardous biomedical or chemical text content.
 """
 
+# Set environment variables BEFORE any imports to avoid protobuf conflicts
 import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import openai
 from dotenv import load_dotenv
 import logging
