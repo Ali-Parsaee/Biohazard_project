@@ -3,251 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BioHazardGPT - AI-Powered Chemical Safety Classification</title>
+    <title>BioHazardGPT - Chemical Safety Classification</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary-color: #ff6b6b;
+            --secondary-color: #4ecdc4;
+            --success-color: #51cf66;
+            --warning-color: #ffd43b;
+            --danger-color: #ff6b6b;
+            --dark-color: #343a40;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .header {
-            text-align: center;
-            padding: 60px 0;
-            color: white;
-        }
-        
-        .header h1 {
+
+        .main-header {
+            background: linear-gradient(90deg, var(--primary-color), var(--warning-color), var(--success-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             font-size: 3.5rem;
-            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin: 2rem 0;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-        
-        .header .subtitle {
-            font-size: 1.3rem;
-            opacity: 0.9;
-            margin-bottom: 30px;
-        }
-        
-        .badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            margin: 0 5px;
-            font-size: 0.9rem;
-            backdrop-filter: blur(10px);
-        }
-        
-        .content {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            margin: 40px 0;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin: 40px 0;
-        }
-        
-        .feature-card {
-            background: #f8f9fa;
-            padding: 30px;
+
+        .card {
+            border: none;
             border-radius: 15px;
-            text-align: center;
-            transition: transform 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.95);
         }
-        
-        .feature-card:hover {
-            transform: translateY(-5px);
+
+        .nav-pills .nav-link {
+            border-radius: 25px;
+            margin: 0 5px;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
-        
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 20px;
-        }
-        
-        .cta-section {
-            text-align: center;
-            padding: 40px 0;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            background: linear-gradient(45deg, #667eea, #764ba2);
+
+        .nav-pills .nav-link.active {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             color: white;
-            padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 50px;
+        }
+
+        .classification-result {
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
             font-weight: bold;
-            margin: 10px;
-            transition: transform 0.3s ease;
+            text-align: center;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .safe {
+            background-color: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .caution {
+            background-color: #fff3cd;
+            border: 2px solid #ffeeba;
+            color: #856404;
+        }
+
+        .hazardous {
+            background-color: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 25px;
+            padding: 10px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
-        
-        .cta-button:hover {
+
+        .example-card {
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .example-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
-        
-        .tech-stack {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin: 30px 0;
+
+        .loading {
+            display: none;
         }
-        
-        .tech-badge {
-            background: #e9ecef;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 500;
+
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
         }
-        
-        .screenshot {
-            width: 100%;
-            max-width: 600px;
-            margin: 20px auto;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2.5rem;
-            }
-            
-            .content {
-                padding: 20px;
-                margin: 20px 0;
-            }
+
+        .feature-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .stats-card {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .demo-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1>🧬 BioHazardGPT</h1>
-            <p class="subtitle">AI-Powered Chemical Safety Classification with RAG Technology</p>
-            <div>
-                <span class="badge">🚀 RAG-Enhanced</span>
-                <span class="badge">🔬 Chemical Safety</span>
-                <span class="badge">🤖 GPT-4o Powered</span>
-                <span class="badge">📊 Vector Database</span>
-            </div>
-        </header>
-
-        <div class="content">
-            <h2>🎯 Project Overview</h2>
-            <p>BioHazardGPT is a sophisticated AI system that classifies chemical and biological text content into safety categories using Retrieval-Augmented Generation (RAG) technology. The system combines semantic search with GPT-4o to provide evidence-based safety classifications.</p>
-            
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🧠</div>
-                    <h3>RAG System</h3>
-                    <p>Advanced retrieval-augmented generation using ChromaDB and SentenceTransformers for context-aware classification</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">🔍</div>
-                    <h3>Semantic Search</h3>
-                    <p>Vector embeddings enable finding similar safety examples from curated chemical safety knowledge base</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Real-time Analysis</h3>
-                    <p>Interactive web interface with 5 tabs: Classification, Dataset Explorer, Batch Analysis, Demo Examples, and RAG Analysis</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">🛡️</div>
-                    <h3>Safety Categories</h3>
-                    <p>Classifies content as Safe (🟢), Caution (🟡), or Hazardous (🔴) with detailed reasoning</p>
-                </div>
-            </div>
-
-            <h2>🛠️ Technical Architecture</h2>
-            <div class="tech-stack">
-                <span class="tech-badge">Python 3.9+</span>
-                <span class="tech-badge">Streamlit</span>
-                <span class="tech-badge">OpenAI GPT-4o</span>
-                <span class="tech-badge">ChromaDB</span>
-                <span class="tech-badge">SentenceTransformers</span>
-                <span class="tech-badge">Vector Embeddings</span>
-                <span class="tech-badge">Semantic Search</span>
-            </div>
-
-            <h2>🌟 Key Features</h2>
-            <ul style="font-size: 1.1rem; margin: 20px 0; padding-left: 20px;">
-                <li><strong>Evidence-Based Classification:</strong> Uses retrieved examples as context for accurate predictions</li>
-                <li><strong>Interactive Web Interface:</strong> Beautiful Streamlit UI with multiple analysis modes</li>
-                <li><strong>Vector Database Integration:</strong> Persistent ChromaDB storage for similarity search</li>
-                <li><strong>Batch Processing:</strong> Analyze multiple samples with visualizations</li>
-                <li><strong>Transparent RAG:</strong> Shows retrieved examples and similarity scores</li>
-                <li><strong>Security-First:</strong> Secure API key management and environment variables</li>
-            </ul>
-
-            <h2>📊 Safety Classification</h2>
-            <p>The system evaluates text content and assigns one of three safety levels:</p>
-            <div style="margin: 20px 0;">
-                <p><strong>🟢 Safe:</strong> Content poses no significant safety concerns</p>
-                <p><strong>🟡 Caution:</strong> Content requires careful handling or has dual-use implications</p>
-                <p><strong>🔴 Hazardous:</strong> Content describes dangerous procedures or could enable harmful activities</p>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="main-header">⚠️ BioHazardGPT</h1>
+                <p class="text-center text-white fs-5 mb-4">
+                    AI-Powered Chemical & Biological Safety Classification System
+                </p>
             </div>
         </div>
 
-        <div class="cta-section">
-            <h2 style="margin-bottom: 30px;">🚀 Experience BioHazardGPT</h2>
-            <a href="https://github.com/Ali-Parsaee/Biohazard_project" class="cta-button">
-                📁 View Source Code
-            </a>
-            <a href="#" class="cta-button" id="live-demo">
-                🌐 Try Live Demo
-            </a>
-            <a href="https://github.com/Ali-Parsaee/Biohazard_project/blob/main/README.md" class="cta-button">
-                📖 Read Documentation
-            </a>
-        </div>
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card">
+                    <div class="card-body">
+                        <!-- Navigation Tabs -->
+                        <ul class="nav nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="classify-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#classify" type="button" role="tab">
+                                    <i class="fas fa-search me-2"></i>Text Classification
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="examples-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#examples" type="button" role="tab">
+                                    <i class="fas fa-database me-2"></i>Example Dataset
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="about-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#about" type="button" role="tab">
+                                    <i class="fas fa-info-circle me-2"></i>About
+                                </button>
+                            </li>
+                        </ul>
 
-        <div class="content">
-            <h2>🔬 Research Applications</h2>
-            <p>BioHazardGPT demonstrates cutting-edge applications of:</p>
-            <ul style="margin: 20px 0; padding-left: 20px;">
-                <li><strong>Retrieval-Augmented Generation (RAG):</strong> Combining external knowledge with language models</li>
-                <li><strong>Vector Similarity Search:</strong> Semantic understanding of chemical safety content</li>
-                <li><strong>Dual-Use Research Classification:</strong> Identifying potentially harmful scientific content</li>
-                <li><strong>AI Safety in Chemical Sciences:</strong> Responsible AI deployment in sensitive domains</li>
-            </ul>
+                        <!-- Tab Content -->
+                        <div class="tab-content" id="mainTabContent">
+                            <!-- Classification Tab -->
+                            <div class="tab-pane fade show active" id="classify" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-8">
+                                        <h3><i class="fas fa-microscope me-2"></i>Safety Classification</h3>
+                                        <p class="text-muted">Enter chemical procedures, biological protocols, or safety instructions below for AI-powered risk assessment.</p>
+                                        
+                                        <div class="mb-3">
+                                            <label for="textInput" class="form-label fw-bold">Text to Classify:</label>
+                                            <textarea class="form-control" id="textInput" rows="6" 
+                                                    placeholder="Enter chemical procedures, biological protocols, or safety instructions here...
+Example: 'Preparation of 0.1M sodium chloride solution: Dissolve 5.84g of NaCl in 1L distilled water.'"></textarea>
+                                        </div>
+
+                                        <button class="btn btn-primary btn-lg w-100" onclick="classifyText()">
+                                            <span class="loading spinner-border spinner-border-sm me-2" role="status"></span>
+                                            <i class="fas fa-analyze me-2"></i>Classify Safety Level
+                                        </button>
+
+                                        <div id="classificationResult" class="mt-4"></div>
+                                    </div>
+
+                                    <div class="col-lg-4">
+                                        <div class="demo-section">
+                                            <h5><i class="fas fa-lightbulb me-2"></i>Quick Examples</h5>
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-outline-success btn-sm" onclick="loadExample('safe')">
+                                                    ✅ Safe Example
+                                                </button>
+                                                <button class="btn btn-outline-warning btn-sm" onclick="loadExample('caution')">
+                                                    ⚠️ Caution Example
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm" onclick="loadExample('hazardous')">
+                                                    💀 Hazardous Example
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="stats-card mt-4">
+                                            <h6><i class="fas fa-chart-bar me-2"></i>System Stats</h6>
+                                            <div class="row text-center">
+                                                <div class="col-4">
+                                                    <div class="fs-4 fw-bold">44</div>
+                                                    <small>Examples</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="fs-4 fw-bold">3</div>
+                                                    <small>Categories</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="fs-4 fw-bold">AI</div>
+                                                    <small>Powered</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Examples Tab -->
+                            <div class="tab-pane fade" id="examples" role="tabpanel">
+                                <h3><i class="fas fa-database me-2"></i>Example Dataset</h3>
+                                <p class="text-muted">Browse through our curated dataset of chemical safety examples across different risk categories.</p>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <select class="form-select" id="categoryFilter" onchange="filterExamples()">
+                                            <option value="all">All Categories</option>
+                                            <option value="Safe">Safe</option>
+                                            <option value="Caution">Caution</option>
+                                            <option value="Hazardous">Hazardous</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" id="searchInput" 
+                                               placeholder="Search examples..." onkeyup="filterExamples()">
+                                    </div>
+                                </div>
+
+                                <div id="examplesContainer" class="row">
+                                    <!-- Examples will be loaded here -->
+                                </div>
+                            </div>
+
+                            <!-- About Tab -->
+                            <div class="tab-pane fade" id="about" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-lg-8">
+                                        <h3><i class="fas fa-info-circle me-2"></i>About BioHazardGPT</h3>
+                                        <p class="lead">
+                                            BioHazardGPT is an advanced AI-powered system designed to classify chemical and biological procedures 
+                                            based on their safety risk levels.
+                                        </p>
+                                        
+                                        <h5>Key Features:</h5>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>Real-time safety classification</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>Three-tier risk assessment (Safe, Caution, Hazardous)</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>Comprehensive reasoning for each classification</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>Curated dataset of 44+ examples</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>No server dependencies - runs entirely in browser</li>
+                                        </ul>
+
+                                        <h5>Safety Categories:</h5>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="card border-success mb-3">
+                                                    <div class="card-body text-center">
+                                                        <i class="fas fa-check-circle text-success fs-1"></i>
+                                                        <h6 class="card-title">Safe</h6>
+                                                        <p class="card-text small">Standard laboratory procedures with minimal risk</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-warning mb-3">
+                                                    <div class="card-body text-center">
+                                                        <i class="fas fa-exclamation-triangle text-warning fs-1"></i>
+                                                        <h6 class="card-title">Caution</h6>
+                                                        <p class="card-text small">Procedures requiring special care and safety measures</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-danger mb-3">
+                                                    <div class="card-body text-center">
+                                                        <i class="fas fa-skull-crossbones text-danger fs-1"></i>
+                                                        <h6 class="card-title">Hazardous</h6>
+                                                        <p class="card-text small">High-risk procedures with potential for harm</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6><i class="fas fa-code me-2"></i>Technical Details</h6>
+                                                <ul class="list-unstyled small">
+                                                    <li><strong>Frontend:</strong> HTML5, CSS3, JavaScript</li>
+                                                    <li><strong>Styling:</strong> Bootstrap 5</li>
+                                                    <li><strong>Icons:</strong> Font Awesome</li>
+                                                    <li><strong>Deployment:</strong> GitHub Pages</li>
+                                                    <li><strong>AI Model:</strong> Rule-based classification</li>
+                                                </ul>
+
+                                                <h6 class="mt-3"><i class="fas fa-github me-2"></i>Repository</h6>
+                                                <a href="https://github.com/Ali-Parsaee/Biohazard_project" class="btn btn-outline-dark btn-sm">
+                                                    <i class="fab fa-github me-2"></i>View on GitHub
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        // Update the live demo link when deployed
-        document.getElementById('live-demo').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Live demo will be available once deployed to Streamlit Cloud!\n\nTo deploy:\n1. Go to share.streamlit.io\n2. Connect your GitHub\n3. Deploy Ali-Parsaee/Biohazard_project');
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/biohazard.js"></script>
 </body>
 </html> 
